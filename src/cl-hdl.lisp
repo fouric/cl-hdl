@@ -6,6 +6,7 @@
   `(
     (timescale (1 ns) (1 ps))
     (define dly \#1)
+    (// "this comment will be embedded into the output Verilog code")
     ))
 
 (defparameter *timescale-units* '(s ms us ns ps fs))
@@ -30,7 +31,7 @@
 (defun generate-verilog-form (form &optional (indentation 0))
   (flet ((emit (control-string &rest format-arguments)
            (apply #'iformat indentation t (concatenate 'string control-string "~%") format-arguments)))
-    (case (first form)
+    (ccase (first form)
       (timescale
        ;; like (timescale (1 ns) (1 ps))
        (let ((scale (nth 1 form))
@@ -41,7 +42,11 @@
        ;; like (define dly \#1)
        (let ((name (nth 1 form))
              (text (nth 2 form)))
-         (emit "`define ~a ~a" name text))))))
+         (emit "`define ~a ~a" name text)))
+      (//
+       (emit "// ~a" (second form)))
+      (/*
+       (emit "/* ~a */" (second form))))))
 
 (defun generate-verilog (source)
   (dolist (form source)
