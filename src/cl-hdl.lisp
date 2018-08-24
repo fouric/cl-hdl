@@ -9,7 +9,7 @@
     (timescale (1 ns) (1 ps))
     (define "dly" \#1)
     (// "this comment will be embedded into the output Verilog code")
-    (module "tx" ((define ten 10))
+    (module "tx" ((input reg "clk_master" 0))
             (timescale (1 ns) (100 ps)))
     ))
 
@@ -41,10 +41,28 @@
 ;;   (module (name (port-list))
 ;;     ...)
 (defun generate-verilog-form (form &optional (indentation 0))
-  (flet ((emit (control-string &rest format-arguments)
-           (apply #'iformat indentation t (concatenate 'string control-string "~%") format-arguments))
-         (indent-emit (control-string &rest format-arguments)
-           (apply #'iformat (1+ indentation) t (concatenate 'string control-string "~%") format-arguments)))
+  (labels ((emit (control-string &rest format-arguments)
+             (apply #'iformat indentation t (concatenate 'string control-string "~%") format-arguments))
+           (indent-emit (control-string &rest format-arguments)
+             (apply #'iformat (1+ indentation) t (concatenate 'string control-string "~%") format-arguments))
+           (sameline-emit (control-string &rest format-arguments)
+             (apply #'iformat (1+ indentation) t (concatenate 'string control-string "") format-arguments))
+           (generate-signal ()
+             (let ((range (if (listp (second form))
+                              (format nil "[~a:~a] " (first (second form)) (second (second form)))
+                              ""))
+                   ;; rest will be like (foo 255) or (foo (7 0) 255) or (foo (7 0))
+                   (rest (if (listp (second form))
+                             (nthcdr 2 form)
+                             (nthcdr 1 form))))
+               (let ((name (first rest))
+                     (words (if (and (listp (second rest)) (second rest))
+                                (format nil " [~a:~a]" (first (second rest)) (second (second rest)))
+                                ""))
+                     (init (if (listp (second rest))
+                               (third rest)
+                               (second rest))))
+                 (emit "~a~a~a~a;" range name words (if init (format nil " = ~a" init) ""))))))
     (ccase (first form)
       (timescale
        ;; like (timescale (1 ns) (1 ps))
@@ -62,7 +80,7 @@
       (/*
        (emit "/* ~a */" (second form)))
       (module
-       ;; TODO: parameters, "endmodule : name"
+       ;; TODO: parameters (turns out that #(...) creates a simple-vector in CL, we could use this...), "endmodule : name"
        ;; http://verilog.renerta.com/mobile/source/vrg00026.htm
        (let ((name (nth 1 form))
              (port-list (nth 2 form)))
@@ -73,7 +91,26 @@
          (indent-emit ");")
          (dolist (form (nthcdr 3 form))
            (generate-verilog-form form (1+ indentation)))
-         (emit "endmodule"))))))
+         (emit "endmodule")))
+      (input
+       (sameline-emit "input ")
+       (generate-verilog-form (rest form) 0))
+      (output
+       (sameline-emit "output ")
+       (generate-verilog-form (rest form) 0))
+      (inout
+       (sameline-emit "inout ")
+       (generate-verilog-form (rest form) 0))
+      (reg
+       ;; WAIT - WHAT IF WE NEED TO PARSE SUBEXPRESSIONS TO SUBSTITUTE IN PARAMETERS OR MACROS
+       ;; TODO: do that
+       ;; like (reg foo), (reg (7 0) foo), (reg (7 0) foo 255), (reg (7 0) rom (15 0) 0), (reg rom (15 0) 0)
+       ;; ok this is going to be tricky
+       (sameline-emit "reg ")
+       (generate-signal))
+      (wire
+       (sameline-emit "wire ")
+       (generate-signal)))))
 
 (defun generate-verilog (source)
   (dolist (form source)
