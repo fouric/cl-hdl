@@ -1,3 +1,5 @@
 (defpackage :cl-hdl
   (:use :cl)
-  (:export #:generate-verilog))
+  (:export #:generate-verilog
+           #:test
+           ))
