@@ -26,15 +26,23 @@
               (precision-value precision-units) "Invalid timescale precision: (~S ~S)" precision-value precision-units)
       )))
 
+(defun iformat (indentation destination control-string &rest format-arguments)
+  (when (plusp indentation)
+    (format t (n-characters indentation #\Tab)))
+  (apply #'format destination control-string format-arguments))
+
+(defun generate-verilog-form (form &optional (indentation 0))
+  (case (first form)
+    (timescale
+     ;; like (timescale (1 ns) (1 ps))
+     (let ((scale (nth 1 form))
+           (precision (nth 2 form)))
+       (iformat indentation t "`timescale ~a ~a / ~a ~a~%" (first scale) (string-downcase (string (second scale))) (first precision) (string-downcase (string (second precision))))))))
+
 (defun generate-verilog (source)
-  (dolist (expression source)
+  (dolist (form source)
     (fresh-line)
-    (case (first expression)
-      (timescale
-       ;; like (timescale (1 ns) (1 ps))
-       (let ((scale (nth 1 expression))
-             (precision (nth 2 expression)))
-         (format t "`timescale ~a ~a / ~a ~a~%" (first scale) (string-downcase (string (second scale))) (first precision) (string-downcase (string (second precision)))))))))
+    (generate-verilog-form form)))
 
 (defun test ()
   (generate-verilog *example-source*))
