@@ -9,12 +9,12 @@
     (timescale (1 ns) (1 ps))
     (define "dly" \#1)
     (// "this comment will be embedded into the output Verilog code")
-    (module "tx" ((input reg "clk_master")
-                  (input "trigger")
-                  (output "out")
-                  (output "vdd"))
+    (module "tx" ((input reg () "clk_master" () nil)
+                  (input nil () "trigger" () nil)
+                  (output nil () "out" () nil)
+                  (output nil () "vdd" () nil))
             (// "send consecutive integers")
-            (reg (7 0) "next_byte")
+            (reg (7 0) "next_byte" () nil)
             (assign "vdd" 1))
     ))
 
@@ -36,6 +36,8 @@
                    (member (precision-units *timescale-units*)))
               (precision-value precision-units) "Invalid timescale precision: (~S ~S)" precision-value precision-units))))
 
+;; OK WE'RE GOING TO ADOPT A MORE VERBOSE BUT EASIER TO PARSE SYNTAX NOW
+
 ;; http://verilog.renerta.com/mobile/source/vrg00008.htm
 ;; this could probably be improved by having a case-bind expression:
 ;; (case-bind form
@@ -52,22 +54,20 @@
              (apply #'iformat (1+ indentation) t (concatenate 'string control-string "~%") format-arguments))
            (sameline-emit (control-string &rest format-arguments)
              (apply #'iformat (1+ indentation) t (concatenate 'string control-string "") format-arguments))
-           (generate-signal ()
-             (let ((range (if (listp (second form))
-                              (format nil "[~a:~a] " (first (second form)) (second (second form)))
-                              ""))
-                   ;; rest will be like (foo 255) or (foo (7 0) 255) or (foo (7 0))
-                   (rest (if (listp (second form))
-                             (nthcdr 2 form)
-                             (nthcdr 1 form))))
-               (let ((name (first rest))
-                     (words (if (and (listp (second rest)) (second rest))
-                                (format nil " [~a:~a]" (first (second rest)) (second (second rest)))
-                                ""))
-                     (init (if (listp (second rest))
-                               (third rest)
-                               (second rest))))
-                 (format t "~a~a~a~a" range name words (if init (format nil " = ~a" init) ""))))))
+           (generate-signal (form)
+             ;; like ("reg" () "clk_master" () nil)
+             ;; like ("" (7 0) "trigger" () nil)
+             (destructuring-bind (type range name words init) form
+               (when type
+                 (format t "~a " (string-downcase (string type))))
+               (when range
+                 (format t "[~a:~a] " (first range) (second range))
+                 )
+               (format t "~a" name)
+               (when words
+                 (format t " [~a:~a]" (first words) (second words)))
+               (when init
+                 (format t " = ~a" init)))))
     (case (first form)
       (timescale
        ;; like (timescale (1 ns) (1 ps))
@@ -102,22 +102,16 @@
          (dolist (form (nthcdr 3 form))
            (generate-verilog-form form (1+ indentation)))
          (emit "endmodule")))
-      (reg
-       ;; WAIT - WHAT IF WE NEED TO PARSE SUBEXPRESSIONS TO SUBSTITUTE IN PARAMETERS OR MACROS
-       ;; TODO: do that
-       ;; like (reg foo), (reg (7 0) foo), (reg (7 0) foo 255), (reg (7 0) rom (15 0) 0), (reg rom (15 0) 0)
-       ;; ok this is going to be tricky
-       (format t "reg ")
-       (generate-signal))
-      (wire
-       (format t "wire ")
-       (generate-signal))
       (otherwise
        (let ((first (first form)))
          (cond
            ((member first '(input output inout))
             (sameline-emit (concatenate 'string (string-downcase (string first)) " "))
-            (generate-signal))
+            (generate-signal (nthcdr 1 form)))
+           ((member first '(reg wire))
+            (format t (n-characters indentation #\Tab))
+            (generate-signal form)
+            (format t ";~%"))
            (t
             (emit "unimplemented form: ~s" form))))))))
 
