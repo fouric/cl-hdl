@@ -5,6 +5,7 @@
 (defparameter *example-source*
   `(
     (timescale (1 ns) (1 ps))
+    (define dly \#1)
     ))
 
 (defparameter *timescale-units* '(s ms us ns ps fs))
@@ -23,21 +24,24 @@
       (assert (and (integerp precision-value)
                    (not (minusp precision-value))
                    (member (precision-units *timescale-units*)))
-              (precision-value precision-units) "Invalid timescale precision: (~S ~S)" precision-value precision-units)
-      )))
+              (precision-value precision-units) "Invalid timescale precision: (~S ~S)" precision-value precision-units))))
 
-(defun iformat (indentation destination control-string &rest format-arguments)
-  (when (plusp indentation)
-    (format t (n-characters indentation #\Tab)))
-  (apply #'format destination control-string format-arguments))
-
+;; http://verilog.renerta.com/mobile/source/vrg00008.htm
 (defun generate-verilog-form (form &optional (indentation 0))
-  (case (first form)
-    (timescale
-     ;; like (timescale (1 ns) (1 ps))
-     (let ((scale (nth 1 form))
-           (precision (nth 2 form)))
-       (iformat indentation t "`timescale ~a ~a / ~a ~a~%" (first scale) (string-downcase (string (second scale))) (first precision) (string-downcase (string (second precision))))))))
+  (flet ((emit (control-string &rest format-arguments)
+           (apply #'iformat indentation t (concatenate 'string control-string "~%") format-arguments)))
+    (case (first form)
+      (timescale
+       ;; like (timescale (1 ns) (1 ps))
+       (let ((scale (nth 1 form))
+             (precision (nth 2 form)))
+         (emit "`timescale ~a ~a / ~a ~a" (first scale) (string-downcase (string (second scale))) (first precision) (string-downcase (string (second precision))))))
+      (define
+       ;; does NOT support macro arguments at the moment, mainly because I'm unsure as how to convey the optional nature of the arguments
+       ;; like (define dly \#1)
+       (let ((name (nth 1 form))
+             (text (nth 2 form)))
+         (emit "`define ~a ~a" name text))))))
 
 (defun generate-verilog (source)
   (dolist (form source)
