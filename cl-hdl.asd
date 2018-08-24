@@ -14,7 +14,7 @@
   :description "DESCRIPTION HERE"
 
   :serial t
-  :depends-on ()
+  :depends-on (:alexandria)
   :pathname "src"
   :components ((:file "package")
                (:file "util" :depends-on ("package"))

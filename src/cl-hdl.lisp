@@ -67,7 +67,7 @@
                      (init (if (listp (second rest))
                                (third rest)
                                (second rest))))
-                 (emit "~a~a~a~a;" range name words (if init (format nil " = ~a" init) ""))))))
+                 (format t "~a~a~a~a" range name words (if init (format nil " = ~a" init) ""))))))
     (case (first form)
       (timescale
        ;; like (timescale (1 ns) (1 ps))
@@ -91,33 +91,35 @@
              (port-list (nth 2 form)))
          (emit "module ~a" name)
          (indent-emit "(")
-         (dolist (port port-list)
+         (dolist (port (butlast port-list))
+           (generate-verilog-form port (1+ indentation))
+           ;; wait, this breaks on comments
+           (emit ","))
+         (alexandria:when-let ((port (first (last port-list))))
            (generate-verilog-form port (1+ indentation)))
+         (fresh-line)
          (indent-emit ");")
          (dolist (form (nthcdr 3 form))
            (generate-verilog-form form (1+ indentation)))
          (emit "endmodule")))
-      (input
-       (sameline-emit "input ")
-       (generate-verilog-form (rest form) 0))
-      (output
-       (sameline-emit "output ")
-       (generate-verilog-form (rest form) 0))
-      (inout
-       (sameline-emit "inout ")
-       (generate-verilog-form (rest form) 0))
       (reg
        ;; WAIT - WHAT IF WE NEED TO PARSE SUBEXPRESSIONS TO SUBSTITUTE IN PARAMETERS OR MACROS
        ;; TODO: do that
        ;; like (reg foo), (reg (7 0) foo), (reg (7 0) foo 255), (reg (7 0) rom (15 0) 0), (reg rom (15 0) 0)
        ;; ok this is going to be tricky
-       (sameline-emit "reg ")
+       (format t "reg ")
        (generate-signal))
       (wire
-       (sameline-emit "wire ")
+       (format t "wire ")
        (generate-signal))
-      (t
-       (emit "unimplemented form: ~s" form)))))
+      (otherwise
+       (let ((first (first form)))
+         (cond
+           ((member first '(input output inout))
+            (sameline-emit (concatenate 'string (string-downcase (string first)) " "))
+            (generate-signal))
+           (t
+            (emit "unimplemented form: ~s" form))))))))
 
 (defun generate-verilog (source)
   (dolist (form source)
