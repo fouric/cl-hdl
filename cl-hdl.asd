@@ -17,4 +17,4 @@
   :depends-on ()
   :pathname "src"
   :components ((:file "package")
-               (:file "cl-hdl" :depends-on "package")))
+               (:file "cl-hdl" :depends-on ("package"))))
