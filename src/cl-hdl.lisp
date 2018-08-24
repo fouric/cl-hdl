@@ -9,8 +9,13 @@
     (timescale (1 ns) (1 ps))
     (define "dly" \#1)
     (// "this comment will be embedded into the output Verilog code")
-    (module "tx" ((input reg "clk_master" 0))
-            (timescale (1 ns) (100 ps)))
+    (module "tx" ((input reg "clk_master")
+                  (input "trigger")
+                  (output "out")
+                  (output "vdd"))
+            (// "send consecutive integers")
+            (reg (7 0) "next_byte")
+            (assign "vdd" 1))
     ))
 
 (defparameter *timescale-units* '(s ms us ns ps fs))
@@ -63,7 +68,7 @@
                                (third rest)
                                (second rest))))
                  (emit "~a~a~a~a;" range name words (if init (format nil " = ~a" init) ""))))))
-    (ccase (first form)
+    (case (first form)
       (timescale
        ;; like (timescale (1 ns) (1 ps))
        (let ((scale (nth 1 form))
@@ -110,7 +115,9 @@
        (generate-signal))
       (wire
        (sameline-emit "wire ")
-       (generate-signal)))))
+       (generate-signal))
+      (t
+       (emit "unimplemented form: ~s" form)))))
 
 (defun generate-verilog (source)
   (dolist (form source)
