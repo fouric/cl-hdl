@@ -7,3 +7,4 @@ inbox:
     keep track of all symbols, user-provided and generated, and use to detect and warn about collisions! (such as when you create several backend values for a single user value (e.g. single name for synchronizer, multiple names for pieces its implemented with))
     wire vs reg models: aoi vs barrel shifter with loop
     to aid both hardware co-synthesis and hardware parallelization, include extra parallelization information in loops - that is, subdivide into "sequential FOR" that guarantees that all iterations will run in sequence, "parallel FOR" that gives no guarantees about scheduling, another parallel for that explicitly guarantees that all old values will be used, etc.
+    maybe poke mego if he's interested when you start to do things

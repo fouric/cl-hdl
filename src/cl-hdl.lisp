@@ -1,7 +1,5 @@
 (in-package :cl-hdl)
 
-(proclaim '(optimize (speed 0) (safety 0) (space 0) (debug 3)))
-
 ;;; NOTE: currently, little to no name translation is being done on symbols/identifiers - if you name your module my-module, IT WILL BREAK
 
 (defparameter *example-source*
